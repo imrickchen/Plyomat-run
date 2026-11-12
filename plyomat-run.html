@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Plyomat 跑酷</title>
+<style>
+  :root{
+    --bg:#0f1720; --panel:#16212d; --line:#26384a; --ink:#eef3f7; --mute:#8aa0b4;
+    --accent:#ff7a2f; --good:#3ddc97; --bad:#ff4d5e; --blue:#4cc3ff;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"PingFang TC","Noto Sans TC",system-ui,sans-serif;overflow:hidden;
+    -webkit-user-select:none;user-select:none}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+  .screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;z-index:5}
+  .hidden{display:none!important}
+  .card{background:rgba(22,33,45,.96);border:1px solid var(--line);border-radius:20px;padding:28px 32px;
+    width:min(760px,100%);max-height:100%;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  h1{margin:0 0 4px;font-size:34px;letter-spacing:.5px}
+  h1 span{color:var(--accent)}
+  .sub{color:var(--mute);margin:0 0 22px;font-size:15px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  button{font:inherit;border:0;border-radius:14px;padding:14px 20px;font-size:18px;font-weight:600;
+    background:#22344a;color:var(--ink);cursor:pointer}
+  button:active{transform:scale(.97)}
+  button.primary{background:var(--accent);color:#1a0d04}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--mute)}
+  .status{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--mute)}
+  .dot{width:12px;height:12px;border-radius:50%;background:#556}
+  .dot.on{background:var(--good);box-shadow:0 0 10px var(--good)}
+  .dot.wait{background:#f2c94c}
+  .sect{margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
+  .sect h2{font-size:15px;color:var(--mute);font-weight:600;margin:0 0 12px;letter-spacing:1px}
+  .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .mode{background:#1c2a39;border:2px solid transparent;border-radius:16px;padding:16px;text-align:left;font-weight:500}
+  .mode b{display:block;font-size:20px;margin-bottom:4px}
+  .mode small{color:var(--mute);font-size:13px;line-height:1.4;display:block}
+  .mode.sel{border-color:var(--accent);background:#2a2420}
+  .ivl{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px}
+  .stepper{display:flex;align-items:center;gap:8px;background:#1c2a39;border-radius:12px;padding:6px 10px}
+  .stepper label{color:var(--mute);font-size:14px;margin-right:4px}
+  .stepper button{padding:6px 12px;font-size:18px;border-radius:9px}
+  .stepper output{min-width:42px;text-align:center;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+  .note{font-size:13px;color:var(--mute);line-height:1.6;margin-top:10px}
+  .err{color:var(--bad)}
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:3}
+  .hudbox{position:absolute;top:calc(14px + env(safe-area-inset-top));font-variant-numeric:tabular-nums}
+  #hudL{left:20px} #hudR{right:20px;text-align:right} #hudC{left:50%;transform:translateX(-50%);text-align:center}
+  .big{font-size:44px;font-weight:800;line-height:1}
+  .lbl{font-size:13px;color:#cfe0ee;opacity:.85;letter-spacing:1px}
+  .mid{font-size:24px;font-weight:700}
+  #phase{font-size:20px;font-weight:800;letter-spacing:2px;padding:4px 14px;border-radius:10px;display:inline-block;margin-bottom:4px}
+  #banner{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);font-size:96px;font-weight:900;
+    z-index:4;pointer-events:none;text-shadow:0 6px 30px rgba(0,0,0,.6);text-align:center;white-space:nowrap}
+  #toast{position:fixed;left:50%;top:62%;transform:translateX(-50%);font-size:34px;font-weight:800;z-index:4;
+    pointer-events:none;opacity:0;transition:opacity .2s;text-shadow:0 4px 20px rgba(0,0,0,.6)}
+  #ctrl{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));right:16px;z-index:6;display:flex;gap:10px}
+  #ctrl button{background:rgba(22,33,45,.85);border:1px solid var(--line);font-size:15px;padding:10px 14px}
+  #sim{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));left:16px;z-index:6;display:flex;gap:12px}
+  #sim button{width:120px;height:90px;font-size:18px;background:rgba(34,52,74,.9);border:1px solid var(--line)}
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;margin-top:8px}
+  th,td{padding:8px 6px;text-align:right;border-bottom:1px solid var(--line);font-size:15px}
+  th{color:var(--mute);font-weight:600} th:first-child,td:first-child{text-align:left}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .stat{background:#1c2a39;border-radius:14px;padding:14px}
+  .stat .v{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums}
+  .stat .k{font-size:13px;color:var(--mute);margin-top:2px}
+  .pb{color:var(--good);font-weight:700}
+  @media (max-width:700px){.modes,.stats{grid-template-columns:1fr 1fr}.big{font-size:32px}}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="hudL" class="hudbox">
+    <div class="lbl">距離</div><div class="big" id="hDist">0 m</div>
+    <div class="lbl" style="margin-top:10px">分數</div><div class="mid" id="hScore">0</div>
+    <div class="mid" id="hLives" style="margin-top:6px"></div>
+  </div>
+  <div id="hudC" class="hudbox">
+    <div id="phase"></div>
+    <div class="big" id="hTime">0</div>
+    <div class="lbl" id="hRound"></div>
+  </div>
+  <div id="hudR" class="hudbox">
+    <div class="lbl">步頻 (步/分)</div><div class="big" id="hSpm">0</div>
+    <div class="lbl" style="margin-top:10px">觸地 / 加乘</div><div class="mid"><span id="hCt">–</span> <span id="hMul" style="color:var(--accent)"></span></div>
+    <div class="lbl" style="margin-top:10px">上一跳</div><div class="mid" id="hJump">–</div>
+  </div>
+</div>
+<div id="banner"></div>
+<div id="toast"></div>
+<div id="sim" class="hidden">
+  <button id="simStep">模擬一步<br><small>空白鍵</small></button>
+  <button id="simJump">模擬跳<br><small>↑ 鍵</small></button>
+</div>
+<div id="ctrl" class="hidden"><button id="btnQuit">結束</button></div>
+
+<!-- MENU -->
+<div id="menu" class="screen">
+  <div class="card">
+    <h1>Plyomat <span>跑酷</span></h1>
+    <p class="sub">在墊子上原地跑，步頻越快角色跑越快；看到欄架就真的跳過去。</p>
+
+    <div class="row" style="justify-content:space-between">
+      <div class="status"><div class="dot" id="dot"></div><span id="connText">尚未連線</span></div>
+      <div class="row">
+        <button id="btnConnect" class="primary">連接 Plyomat</button>
+      </div>
+    </div>
+    <div class="note" id="btNote"></div>
+
+    <div class="sect">
+      <h2>選擇玩法</h2>
+      <div class="modes">
+        <button class="mode sel" data-mode="sprint"><b>30 秒衝刺</b><small>30 秒內能跑多遠</small></button>
+        <button class="mode" data-mode="endless"><b>無限跑酷</b><small>3 條命，撞欄扣一條</small></button>
+        <button class="mode" data-mode="interval"><b>間歇</b><small>跑 / 休息交替，每回合分開記錄</small></button>
+      </div>
+      <div class="ivl hidden" id="ivlSet">
+        <div class="stepper"><label>衝刺</label><button data-k="work" data-d="-5">−</button><output id="oWork">20</output><button data-k="work" data-d="5">+</button><label>秒</label></div>
+        <div class="stepper"><label>休息</label><button data-k="rest" data-d="-5">−</button><output id="oRest">10</output><button data-k="rest" data-d="5">+</button><label>秒</label></div>
+        <div class="stepper"><label>回合</label><button data-k="rounds" data-d="-1">−</button><output id="oRounds">8</output><button data-k="rounds" data-d="1">+</button></div>
+      </div>
+      <div class="row" style="margin-top:16px">
+        <label class="status" style="cursor:pointer"><input type="checkbox" id="chkObs" checked style="width:20px;height:20px"> 有欄架（要跳）</label>
+      </div>
+    </div>
+
+    <div class="sect row" style="justify-content:space-between">
+      <div class="note" id="pbNote" style="margin:0"></div>
+      <div class="row">
+        <button id="btnDemo" class="ghost">不連墊子試玩</button>
+        <button id="btnStart" class="primary">開始</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div id="result" class="screen hidden">
+  <div class="card">
+    <h1 id="rTitle">完成！</h1>
+    <p class="sub" id="rSub"></p>
+    <div class="stats" id="rStats"></div>
+    <div id="rTable"></div>
+    <div class="row" style="margin-top:22px;justify-content:flex-end">
+      <button id="btnMenu" class="ghost">回選單</button>
+      <button id="btnAgain" class="primary">再玩一次</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= 設定 ================= */
+const NUS = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const TX  = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+const JUMP_FT = 250;        // 騰空 ≥ 250 ms 視為「跳」，否則是跑步的一步
+const STALE_MS = 1100;      // 超過這麼久沒落地 → 視為停下
+const OBST_EARLY = 450;     // 欄架抵達前多少 ms 內落地的跳也算過
+const OBST_LATE  = 850;     // 欄架抵達後多少 ms 內落地的跳也算過（墊子是落地才回報）
+
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d');
+
+let settings = { mode:'sprint', work:20, rest:10, rounds:8, obstacles:true };
+try { Object.assign(settings, JSON.parse(localStorage.getItem('pmRunSettings')||'{}')); } catch(e){}
+function saveSettings(){ try{ localStorage.setItem('pmRunSettings', JSON.stringify(settings)); }catch(e){} }
+
+/* ================= 藍牙 ================= */
+let device = null, connected = false, rxBuf = '';
+function setConn(state, text){
+  $('dot').className = 'dot' + (state==='on'?' on':state==='wait'?' wait':'');
+  $('connText').textContent = text;
+  $('btnConnect').textContent = state==='on' ? '重新連接' : '連接 Plyomat';
+}
+if (!navigator.bluetooth) {
+  $('btNote').innerHTML = '<span class="err">這個瀏覽器不支援藍牙。</span>iPad 請用 <b>Bluefy</b> App 開啟這個頁面；電腦或 Android 用 Chrome。也可以先按「不連墊子試玩」。';
+} else {
+  $('btNote').textContent = '連接前請先關掉官方 Plyomat App，墊子同時只能連一個裝置。';
+}
+
+$('btnConnect').onclick = async () => {
+  initAudio();
+  if (!navigator.bluetooth) return;
+  try {
+    setConn('wait','搜尋中…');
+    device = await navigator.bluetooth.requestDevice({
+      filters:[{ namePrefix:'Plyomat' }], optionalServices:[NUS]
+    });
+    device.addEventListener('gattserverdisconnected', onDisconnect);
+    await connectGatt();
+  } catch (e) {
+    setConn('off', '未連線');
+    $('btNote').innerHTML = '<span class="err">連線失敗：' + (e && e.message || e) + '</span>';
+  }
+};
+async function connectGatt(){
+  setConn('wait','連線中…');
+  const server = await device.gatt.connect();
+  const svc = await server.getPrimaryService(NUS);
+  const ch = await svc.getCharacteristic(TX);
+  ch.addEventListener('characteristicvaluechanged', ev => {
+    rxBuf += new TextDecoder().decode(ev.target.value);
+    let i;
+    while ((i = rxBuf.indexOf('\n')) >= 0) { handleLine(rxBuf.slice(0,i).trim()); rxBuf = rxBuf.slice(i+1); }
+    if (rxBuf.length > 200) rxBuf = '';
+  });
+  await ch.startNotifications();
+  connected = true;
+  setConn('on', '已連線：' + (device.name || 'Plyomat'));
+  $('btNote').textContent = '站上墊子跳一下測試，右上角會顯示騰空時間。';
+}
+async function onDisconnect(){
+  connected = false;
+  setConn('wait','斷線，重新連線中…');
+  for (let k=0;k<3;k++){
+    try { await new Promise(r=>setTimeout(r,800)); await connectGatt(); return; } catch(e){}
+  }
+  setConn('off','已斷線，請重新連接');
+}
+
+/* 墊子格式：
+   "R 09 FT 0452 H 025 A 0649 H 085"  第幾下 / 騰空ms / 高度cm / 平均騰空 / 平均高度（落地時送出）
+   "NA FT 7414"                         離墊太久後重新站上 */
+function handleLine(line){
+  const m = line.match(/R\s*(\d+)\s+FT\s*(\d+)\s+H\s*(\d+)/);
+  if (m) { onLanding(+m[2], +m[3], performance.now()); return; }
+  if (/^NA\s+FT/.test(line)) { lastLandT = performance.now(); }
+}
+
+/* ================= 落地事件處理 ================= */
+let lastLandT = 0;
+const landings = [];   // {t, ft, h, ct, jump}
+let lastJump = null, menuPreview = true;
+
+function onLanding(ft, h, t){
+  let ct = null;
+  if (lastLandT && t - lastLandT < 1500) {
+    const c = t - lastLandT - ft;
+    if (c > 60 && c < 900) ct = c;
+  }
+  lastLandT = t;
+  const jump = ft >= JUMP_FT;
+  const ev = { t, ft, h, ct, jump };
+  landings.push(ev);
+  if (landings.length > 400) landings.shift();
+  if (jump) { lastJump = ev; $('hJump').textContent = ft + ' ms · ' + h + ' cm'; }
+  if (game && game.running) game.onLanding(ev);
+  if (!game || !game.running) {
+    // 選單畫面：顯示測試訊息
+    if (connected) $('btNote').textContent = (jump?'跳：':'步：') + '騰空 ' + ft + ' ms' + (jump?' · '+h+' cm':'') + (ct?' · 觸地約 '+Math.round(ct)+' ms':'');
+  }
+}
+
+function median(a){ if(!a.length) return 0; const s=[...a].sort((x,y)=>x-y); const n=s.length; return n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2; }
+
+/* 用最近幾個步距的「中位數」算步頻 → 漏掉幾步也不會掉速 */
+function currentCadence(now){
+  if (!lastLandT || now - lastLandT > STALE_MS) return 0;
+  const steps = landings.filter(l => !l.jump && now - l.t < 3500);
+  if (steps.length < 2) return 0;
+  const iv = [];
+  for (let i=1;i<steps.length;i++){ const d = steps[i].t - steps[i-1].t; if (d > 150 && d < 900) iv.push(d); }
+  if (!iv.length) return 0;
+  // 漏步造成的 2 倍、3 倍間隔：除回單步
+  const m0 = median(iv);
+  const fixed = iv.map(d => d / Math.max(1, Math.round(d / m0)));
+  return 60000 / median(fixed);
+}
+function recentContact(){
+  const c = landings.slice(-8).filter(l => !l.jump && l.ct).map(l => l.ct);
+  return c.length >= 2 ? median(c) : null;
+}
+function contactMultiplier(ct){
+  if (!ct) return 1;
+  if (ct < 170) return 1.5;
+  if (ct < 200) return 1.3;
+  if (ct < 240) return 1.15;
+  return 1;
+}
+
+/* ================= 聲音 ================= */
+let ac = null;
+function initAudio(){ try{ if(!ac) ac = new (window.AudioContext||window.webkitAudioContext)(); if(ac.state==='suspended') ac.resume(); }catch(e){} }
+function beep(freq=880, dur=0.12, vol=0.25, type='sine'){
+  if (!ac) return;
+  try{
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type=type; o.frequency.value=freq; g.gain.value=vol;
+    o.connect(g); g.connect(ac.destination);
+    const t=ac.currentTime; g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+    o.start(t); o.stop(t+dur+0.02);
+  }catch(e){}
+}
+
+/* ================= 遊戲 ================= */
+let game = null;
+
+class Game {
+  constructor(cfg, demo){
+    this.cfg = cfg; this.demo = demo;
+    this.running = false;
+    this.dist = 0; this.wd = 0; this.score = 0; this.speed = 0; this.lives = cfg.mode==='endless'?3:null;
+    this.obst = []; this.nextObstAt = 35;
+    this.steps = 0; this.jumpsOk = 0; this.jumpsMiss = 0; this.bestH = 0; this.bestFt = 0;
+    this.ctAll = []; this.spmSamples = [];
+    this.combo = 0; this.hop = 0; this.stumble = 0;
+    this.phases = this.buildPhases();
+    this.phaseIdx = -1; this.phaseStart = 0;
+    this.rounds = [];
+    this.t0 = 0;
+  }
+  buildPhases(){
+    const c = this.cfg, p = [{ type:'count', dur:3 }];
+    if (c.mode==='sprint') p.push({ type:'work', dur:30, round:1 });
+    else if (c.mode==='endless') p.push({ type:'work', dur:Infinity, round:1 });
+    else for (let r=1;r<=c.rounds;r++){ p.push({ type:'work', dur:c.work, round:r }); if (r<c.rounds) p.push({ type:'rest', dur:c.rest, round:r }); }
+    return p;
+  }
+  get phase(){ return this.phases[this.phaseIdx]; }
+  start(){ this.running = true; this.t0 = performance.now(); this.nextPhase(this.t0); }
+  nextPhase(now){
+    const prev = this.phase;
+    if (prev && prev.type==='work') this.closeRound();
+    this.phaseIdx++;
+    if (this.phaseIdx >= this.phases.length) { this.finish(); return; }
+    this.phaseStart = now;
+    const ph = this.phase;
+    if (ph.type==='work'){
+      this.cur = { round:ph.round, d0:this.wd, steps:0, ct:[], spm:[], ok:0, miss:0 };
+      this.obst = []; this.nextObstAt = this.dist + 30 + Math.random()*20;
+      showBanner(this.cfg.mode==='interval' ? '第 '+ph.round+' 回合' : '跑！', '#ff7a2f', 900);
+      beep(1320,0.35,0.3,'square');
+    } else if (ph.type==='rest'){
+      this.obst = [];
+      showBanner('休息', '#4cc3ff', 1000);
+      beep(520,0.4,0.3,'triangle');
+    }
+  }
+  closeRound(){
+    const r = this.cur; if (!r) return;
+    this.rounds.push({ round:r.round, dist:this.wd - r.d0, steps:r.steps,
+      spm: r.spm.length? median(r.spm):0, ct: r.ct.length? median(r.ct):null, ok:r.ok, miss:r.miss });
+    this.cur = null;
+  }
+  onLanding(ev){
+    const ph = this.phase; if (!ph) return;
+    if (ev.jump){
+      this.hop = 1; this.bestFt = Math.max(this.bestFt, ev.ft); this.bestH = Math.max(this.bestH, ev.h);
+      this.lastJumpT = ev.t;
+      this.jumpTimes = (this.jumpTimes||[]).concat(ev.t).slice(-10);
+    } else if (ph.type==='work'){
+      this.steps++; if (this.cur) this.cur.steps++;
+      if (ev.ct){ this.ctAll.push(ev.ct); if (this.cur) this.cur.ct.push(ev.ct); }
+    }
+  }
+  update(now, dt){
+    const ph = this.phase; if (!ph) return;
+    const el = (now - this.phaseStart)/1000;
+
+    // 倒數 / 階段切換
+    if (ph.type==='count'){
+      const n = Math.ceil(ph.dur - el);
+      if (n !== this._lastCount && n>0){ this._lastCount = n; showBanner(String(n), '#eef3f7', 700); beep(660,0.12); }
+    } else if (isFinite(ph.dur)) {
+      const left = ph.dur - el;
+      const n = Math.ceil(left);
+      if (left <= 3 && n !== this._lastWarn && n>0){ this._lastWarn = n; beep(ph.type==='work'?990:700,0.08,0.2); }
+    }
+    if (el >= ph.dur) { this._lastWarn = null; this.nextPhase(now); if (!this.running) return; }
+
+    // 速度
+    const spm = currentCadence(now);
+    this.spm = spm;
+    let target = spm < 80 ? 0 : Math.min(14, (spm - 80) / 120 * 10);   // 200 spm ≈ 10 m/s
+    if (this.stumble > 0) { target *= 0.3; this.stumble -= dt; }
+    const k = target > this.speed ? 3.5 : 2.2;
+    this.speed += (target - this.speed) * Math.min(1, k*dt);
+    if (this.speed < 0.05) this.speed = 0;
+
+    const ct = recentContact();
+    this.ct = ct; this.mul = contactMultiplier(ct);
+    const step = this.speed * dt;
+    this.dist += step;
+
+    if (this.phase.type==='work'){
+      this.wd += step;
+      this.score += step * this.mul;
+      if (spm > 0 && this.cur) { this.cur.spm.push(spm); this.spmSamples.push(spm); }
+      this.spawnAndCheck(now);
+    }
+    this.hop = Math.max(0, this.hop - dt*2.2);
+  }
+  spawnAndCheck(now){
+    if (!this.cfg.obstacles) return;
+    if (this.dist + 60 > this.nextObstAt){
+      this.obst.push({ x:this.nextObstAt, state:'pending', tc:null });
+      this.nextObstAt += 35 + Math.random()*45;
+    }
+    for (const o of this.obst){
+      if (o.state==='pending' && o.tc===null && this.dist >= o.x) o.tc = now;
+      if (o.state==='pending' && o.tc!==null){
+        const ok = (this.jumpTimes||[]).some(t => t >= o.tc - OBST_EARLY && t <= o.tc + OBST_LATE);
+        if (ok){ o.state='ok'; this.clear(o); }
+        else if (now > o.tc + OBST_LATE){ o.state='hit'; this.crash(o); }
+      }
+    }
+    this.obst = this.obst.filter(o => o.x > this.dist - 40);
+  }
+  clear(o){
+    this.jumpsOk++; if (this.cur) this.cur.ok++;
+    this.combo++;
+    const bonus = 20 + Math.round((lastJump? lastJump.h:20)) + (this.combo-1)*5;
+    this.score += bonus;
+    toast('過欄！ +' + bonus + (this.combo>1?'  連續 '+this.combo:''), '#3ddc97');
+    beep(1500,0.1,0.25); setTimeout(()=>beep(1900,0.12,0.25),90);
+  }
+  crash(o){
+    this.jumpsMiss++; if (this.cur) this.cur.miss++;
+    this.combo = 0; this.stumble = 1.0; this.score = Math.max(0, this.score - 20);
+    beep(160,0.35,0.35,'sawtooth');
+    if (this.lives !== null){
+      this.lives--;
+      toast(this.lives>0 ? '撞到了！剩 '+this.lives+' 條命' : '沒命了', '#ff4d5e');
+      if (this.lives <= 0) setTimeout(()=>this.finish(), 600);
+    } else toast('撞到了！', '#ff4d5e');
+  }
+  stop(){ if (this.phase && this.phase.type==='work') this.closeRound(); this.finish(true); }
+  finish(manual){
+    if (!this.running) return;
+    this.running = false;
+    if (this.cur) this.closeRound();
+    beep(880,0.15); setTimeout(()=>beep(1100,0.15),150); setTimeout(()=>beep(1320,0.3),300);
+    showResults(this, manual);
+  }
+}
+
+/* ================= 畫面 ================= */
+let W=0,H=0,DPR=1;
+function resize(){ DPR = Math.min(2, window.devicePixelRatio||1); W = innerWidth; H = innerHeight;
+  cv.width = W*DPR; cv.height = H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0); }
+addEventListener('resize', resize); resize();
+
+const PX_PER_M = () => Math.max(26, W/34);
+let idleDist = 0;
+
+function draw(now){
+  const g = game && game.running ? game : null;
+  const dist = g ? g.dist : (idleDist += 0.04);
+  const ppm = PX_PER_M();
+  const groundY = H*0.74;
+  const rest = g && g.phase && g.phase.type==='rest';
+
+  // 天空
+  const sky = ctx.createLinearGradient(0,0,0,groundY);
+  sky.addColorStop(0, rest?'#13263a':'#1b2c44'); sky.addColorStop(1, rest?'#1f3b55':'#ff9a5a');
+  ctx.fillStyle = sky; ctx.fillRect(0,0,W,groundY);
+
+  // 太陽
+  ctx.fillStyle = rest?'rgba(200,230,255,.25)':'rgba(255,220,150,.55)';
+  ctx.beginPath(); ctx.arc(W*0.78, groundY*0.52, Math.min(W,H)*0.09, 0, Math.PI*2); ctx.fill();
+
+  // 遠山（視差）
+  drawHills(dist*ppm*0.08, groundY, H*0.22, rest?'#1a3047':'#7b4a5a', 0.004);
+  drawHills(dist*ppm*0.25, groundY, H*0.13, rest?'#203a52':'#4a3550', 0.007);
+
+  // 地面 / 跑道
+  ctx.fillStyle = '#2b1f2e'; ctx.fillRect(0,groundY,W,H-groundY);
+  ctx.fillStyle = '#c4553a'; ctx.fillRect(0,groundY,W,(H-groundY)*0.5);
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(0,groundY+2); ctx.lineTo(W,groundY+2); ctx.stroke();
+  // 距離刻度
+  const off = (dist*ppm) % (ppm*10);
+  ctx.fillStyle = 'rgba(255,255,255,.35)';
+  for (let x = -off; x < W; x += ppm*10) ctx.fillRect(x, groundY + (H-groundY)*0.22, ppm*3, 4);
+  ctx.font = '600 14px -apple-system,sans-serif'; ctx.fillStyle='rgba(255,255,255,.35)';
+  const base = Math.floor(dist/10)*10;
+  for (let i=0;i<6;i++){ const m = base + i*10; const x = W*0.22 + (m - dist)*ppm; if (x>-40&&x<W) ctx.fillText(m+'m', x, groundY + (H-groundY)*0.42); }
+
+  const px = W*0.22;
+
+  // 欄架
+  if (g) for (const o of g.obst){
+    const x = px + (o.x - dist)*ppm;
+    if (x < -60 || x > W+60) continue;
+    drawHurdle(x, groundY, o.state);
+  }
+
+  // 準備跳提示
+  if (g && g.phase && g.phase.type==='work'){
+    const nxt = g.obst.find(o => o.state==='pending' && o.x > dist);
+    if (nxt && g.speed > 0.5){
+      const tta = (nxt.x - dist)/g.speed;
+      if (tta < 1.6){
+        ctx.save(); ctx.globalAlpha = 0.6 + 0.4*Math.sin(now/80);
+        ctx.fillStyle = '#ffe14d'; ctx.font = '900 '+Math.round(H*0.07)+'px -apple-system,sans-serif';
+        ctx.textAlign = 'center'; ctx.fillText('準備跳！', W/2, H*0.3); ctx.restore();
+      }
+    }
+  }
+
+  // 跑者
+  const sp = g ? g.speed : 0;
+  const hopY = g ? Math.sin(g.hop*Math.PI) * H*0.16 : 0;
+  drawRunner(px, groundY - hopY, dist, sp, g && g.stumble>0, g && g.hop>0);
+
+  // 速度線
+  if (sp > 6){
+    ctx.strokeStyle = 'rgba(255,255,255,'+Math.min(.35,(sp-6)/20)+')'; ctx.lineWidth = 2;
+    for (let i=0;i<10;i++){ const y = (i*97 + (now/3)) % groundY; const x = ((i*211 - dist*ppm*1.5) % W + W) % W;
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+60+sp*4,y); ctx.stroke(); }
+  }
+
+  // 休息遮罩
+  if (rest){ ctx.fillStyle='rgba(10,25,40,.35)'; ctx.fillRect(0,0,W,H); }
+}
+
+function drawHills(scroll, baseY, amp, color, freq){
+  ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(0, baseY);
+  for (let x=0; x<=W+10; x+=10){
+    const u = (x + scroll);
+    const y = baseY - amp*(0.55 + 0.25*Math.sin(u*freq) + 0.2*Math.sin(u*freq*2.7+1.3));
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(W, baseY); ctx.closePath(); ctx.fill();
+}
+
+function drawHurdle(x, gy, state){
+  const h = H*0.11, w = H*0.075;
+  const col = state==='ok' ? '#3ddc97' : state==='hit' ? '#ff4d5e' : '#ffffff';
+  ctx.lineWidth = 6; ctx.strokeStyle = '#d9e2ea'; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy-h); ctx.moveTo(x+w, gy); ctx.lineTo(x+w, gy-h); ctx.stroke();
+  ctx.fillStyle = col; ctx.fillRect(x-4, gy-h-10, w+8, 14);
+  ctx.fillStyle = '#111'; for (let i=0;i<3;i++) ctx.fillRect(x + i*(w/3)+w/12, gy-h-10, w/8, 14);
+}
+
+function drawRunner(x, y, dist, speed, stumble, air){
+  const s = H*0.0022;                     // 比例
+  const ph = dist * 1.6;                  // 腿部相位跟著距離走
+  const run = Math.min(1, speed/4);
+  const lean = stumble ? -0.15 : run*0.22;
+  const leg = 26*s, body = 34*s, head = 11*s;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(lean);
+  ctx.lineCap = 'round'; ctx.lineJoin='round';
+  // 影子
+  ctx.restore();
+  ctx.fillStyle='rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(x, H*0.74+4, 22*s, 5*s, 0, 0, Math.PI*2); ctx.fill();
+  ctx.save(); ctx.translate(x, y); ctx.rotate(lean);
+  const hip = { x:0, y:-leg*2 };
+  const sw = air ? 0.9 : run;
+  function limb(a1, a2, len, col, w){
+    const k = { x: hip.x + Math.sin(a1)*len, y: hip.y + Math.cos(a1)*len };
+    const f = { x: k.x + Math.sin(a1 - Math.abs(a2))*len, y: k.y + Math.cos(a1 - Math.abs(a2))*len };
+    ctx.strokeStyle = col; ctx.lineWidth = w;
+    ctx.beginPath(); ctx.moveTo(hip.x,hip.y); ctx.lineTo(k.x,k.y); ctx.lineTo(f.x,f.y); ctx.stroke();
+  }
+  const a = Math.sin(ph)*0.9*sw, b = Math.sin(ph+Math.PI)*0.9*sw;
+  limb(air?0.7:a, air?1.6:0.3+Math.max(0,Math.cos(ph))*1.3*sw, leg, '#c75a1c', 9*s);
+  // 身體
+  const sh = { x: 0, y: hip.y - body };
+  ctx.strokeStyle = '#ff7a2f'; ctx.lineWidth = 12*s;
+  ctx.beginPath(); ctx.moveTo(hip.x,hip.y); ctx.lineTo(sh.x,sh.y); ctx.stroke();
+  limb(air?-0.4:b, air?1.2:0.3+Math.max(0,Math.cos(ph+Math.PI))*1.3*sw, leg, '#ff8f4f', 9*s);
+  // 手臂
+  ctx.strokeStyle = '#ffd2b0'; ctx.lineWidth = 7*s;
+  const arm = 20*s;
+  for (const p of [ph, ph+Math.PI]){
+    const ang = Math.PI + Math.sin(p)*1.0*sw;
+    const e = { x: sh.x + Math.sin(ang)*arm*-1, y: sh.y - Math.cos(ang)*arm };
+    const hnd = { x: e.x + arm*0.9*(0.6+0.4*Math.sin(p)), y: e.y - arm*0.5 };
+    ctx.beginPath(); ctx.moveTo(sh.x, sh.y+4*s); ctx.lineTo(e.x,e.y); ctx.lineTo(hnd.x,hnd.y); ctx.stroke();
+  }
+  // 頭
+  ctx.fillStyle = '#ffd2b0'; ctx.beginPath(); ctx.arc(sh.x+3*s, sh.y-head-3*s, head, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#1b2c44'; ctx.fillRect(sh.x-head+3*s, sh.y-head*2-3*s, head*2, head*0.7); // 頭帶
+  ctx.restore();
+}
+
+/* ================= HUD ================= */
+function fmtTime(sec){ if (!isFinite(sec)) return '∞'; sec = Math.max(0, Math.ceil(sec)); const m = Math.floor(sec/60), s = sec%60; return m ? m+':'+String(s).padStart(2,'0') : String(s); }
+function updateHud(now){
+  const g = game; if (!g || !g.running) return;
+  $('hDist').textContent = Math.floor(g.wd) + ' m';
+  $('hScore').textContent = Math.floor(g.score);
+  $('hLives').textContent = g.lives!==null ? '❤'.repeat(Math.max(0,g.lives)) : '';
+  $('hSpm').textContent = Math.round(g.spm||0);
+  $('hCt').textContent = g.ct ? Math.round(g.ct)+' ms' : '–';
+  $('hMul').textContent = g.mul>1 ? '×'+g.mul : '';
+  const ph = g.phase;
+  if (!ph) return;
+  const el = (now - g.phaseStart)/1000;
+  const pe = $('phase');
+  if (ph.type==='count'){ pe.textContent='準備'; pe.style.background='#334'; $('hTime').textContent=fmtTime(ph.dur-el); }
+  else if (ph.type==='work'){ pe.textContent = g.cfg.mode==='endless'?'跑酷':'衝刺'; pe.style.background='#ff7a2f'; pe.style.color='#1a0d04';
+    $('hTime').textContent = isFinite(ph.dur) ? fmtTime(ph.dur-el) : fmtTime(el).replace('∞',''); }
+  else { pe.textContent='休息'; pe.style.background='#4cc3ff'; pe.style.color='#04202e'; $('hTime').textContent=fmtTime(ph.dur-el); }
+  if (ph.type!=='work') pe.style.color = ph.type==='count'?'#eef3f7':'#04202e';
+  $('hRound').textContent = g.cfg.mode==='interval' && ph.round ? '第 '+ph.round+' / '+g.cfg.rounds+' 回合' : '';
+  if (g.cfg.mode==='endless' && ph.type==='work') $('hTime').textContent = fmtTime(el);
+}
+
+let bannerTimer=null, toastTimer=null;
+function showBanner(text, color, ms){ const b=$('banner'); b.textContent=text; b.style.color=color; b.style.opacity=1;
+  clearTimeout(bannerTimer); bannerTimer=setTimeout(()=>{ b.style.opacity=0; }, ms); }
+function toast(text,color){ const t=$('toast'); t.textContent=text; t.style.color=color; t.style.opacity=1;
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ t.style.opacity=0; }, 1100); }
+
+/* ================= 流程 ================= */
+let demoMode = false;
+function startGame(demo){
+  initAudio();
+  demoMode = demo;
+  landings.length = 0; lastLandT = 0;
+  game = new Game({...settings}, demo);
+  $('menu').classList.add('hidden'); $('result').classList.add('hidden');
+  $('hud').classList.remove('hidden'); $('ctrl').classList.remove('hidden');
+  $('sim').classList.toggle('hidden', !demo);
+  $('hJump').textContent = '–';
+  try { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(()=>{}); } catch(e){}
+  game.start();
+}
+function toMenu(){
+  $('hud').classList.add('hidden'); $('ctrl').classList.add('hidden'); $('sim').classList.add('hidden');
+  $('result').classList.add('hidden'); $('menu').classList.remove('hidden');
+  $('banner').style.opacity=0;
+  renderPB();
+}
+
+function pbKey(){ const s=settings; return 'pmRunPB_' + s.mode + (s.mode==='interval'?'_'+s.work+'_'+s.rest+'_'+s.rounds:'') + (s.obstacles?'':'_noobs'); }
+function getPB(){ try{ return JSON.parse(localStorage.getItem(pbKey())||'null'); }catch(e){ return null; } }
+function setPB(v){ try{ localStorage.setItem(pbKey(), JSON.stringify(v)); }catch(e){} }
+function renderPB(){ const pb = getPB(); $('pbNote').textContent = pb ? '這個玩法的最佳紀錄：' + pb.dist + ' m · ' + pb.score + ' 分' : ''; }
+
+function showResults(g, manual){
+  $('hud').classList.add('hidden'); $('ctrl').classList.add('hidden'); $('sim').classList.add('hidden');
+  const dist = Math.floor(g.wd), score = Math.floor(g.score);
+  const spm = g.spmSamples.length ? Math.round(median(g.spmSamples)) : 0;
+  const ct = g.ctAll.length ? Math.round(median(g.ctAll)) : null;
+  let pbText = '';
+  if (!g.demo){
+    const pb = getPB();
+    if (!pb || score > pb.score){ setPB({dist, score}); pbText = pb ? '　🏆 新紀錄！' : ''; }
+  }
+  const names = { sprint:'30 秒衝刺', endless:'無限跑酷', interval:'間歇 '+g.cfg.work+'/'+g.cfg.rest+' × '+g.cfg.rounds };
+  $('rTitle').innerHTML = (manual?'提前結束':'完成！') + '<span class="pb" style="font-size:22px">'+pbText+'</span>';
+  $('rSub').textContent = names[g.cfg.mode] + (g.demo ? '（試玩模式，不記錄）' : '');
+  const st = [
+    [dist+' m','距離'], [score,'分數'], [g.steps,'偵測到的步數'], [spm||'–','步頻中位數 (步/分)'],
+    [ct? ct+' ms':'–','觸地時間中位數'], [g.cfg.obstacles? g.jumpsOk+' / '+(g.jumpsOk+g.jumpsMiss):'–','過欄'],
+    [g.bestFt? g.bestFt+' ms':'–','最長騰空'], [g.bestH? g.bestH+' cm':'–','最高跳']
+  ];
+  $('rStats').innerHTML = st.map(([v,k])=>'<div class="stat"><div class="v">'+v+'</div><div class="k">'+k+'</div></div>').join('');
+  if (g.cfg.mode==='interval' && g.rounds.length){
+    const best = Math.max(...g.rounds.map(r=>r.dist));
+    const first = g.rounds[0].dist || 1;
+    $('rTable').innerHTML = '<div class="sect"><h2>每回合</h2><table><tr><th>回合</th><th>距離</th><th>步數</th><th>步頻</th><th>觸地</th>'+(g.cfg.obstacles?'<th>過欄</th>':'')+'<th>對比第1回</th></tr>' +
+      g.rounds.map(r=>'<tr><td>'+r.round+'</td><td'+(r.dist===best?' class="pb"':'')+'>'+Math.floor(r.dist)+' m</td><td>'+r.steps+'</td><td>'+(r.spm?Math.round(r.spm):'–')+'</td><td>'+(r.ct?Math.round(r.ct)+' ms':'–')+'</td>'+(g.cfg.obstacles?'<td>'+r.ok+'/'+(r.ok+r.miss)+'</td>':'')+'<td>'+Math.round(r.dist/first*100)+'%</td></tr>').join('') +
+      '</table><div class="note">觸地時間由「兩次落地的間隔 − 騰空時間」推算，藍牙時間有約 ±50 ms 誤差，適合看趨勢，不適合當正式測驗數據。</div></div>';
+  } else $('rTable').innerHTML = '';
+  $('result').classList.remove('hidden');
+}
+
+/* ================= 選單控制 ================= */
+function syncMenu(){
+  document.querySelectorAll('.mode').forEach(b => b.classList.toggle('sel', b.dataset.mode===settings.mode));
+  $('ivlSet').classList.toggle('hidden', settings.mode!=='interval');
+  $('oWork').textContent = settings.work; $('oRest').textContent = settings.rest; $('oRounds').textContent = settings.rounds;
+  $('chkObs').checked = settings.obstacles;
+  renderPB();
+}
+document.querySelectorAll('.mode').forEach(b => b.onclick = () => { settings.mode = b.dataset.mode; saveSettings(); syncMenu(); });
+document.querySelectorAll('.stepper button').forEach(b => b.onclick = () => {
+  const k = b.dataset.k, d = +b.dataset.d;
+  const lim = { work:[5,120], rest:[5,180], rounds:[1,30] }[k];
+  settings[k] = Math.min(lim[1], Math.max(lim[0], settings[k] + d)); saveSettings(); syncMenu();
+});
+$('chkObs').onchange = e => { settings.obstacles = e.target.checked; saveSettings(); syncMenu(); };
+$('btnStart').onclick = () => {
+  if (!connected){ $('btNote').innerHTML = '<span class="err">還沒連上墊子。</span>先按「連接 Plyomat」，或按「不連墊子試玩」。'; return; }
+  startGame(false);
+};
+$('btnDemo').onclick = () => startGame(true);
+$('btnQuit').onclick = () => { if (game && game.running) game.stop(); };
+$('btnAgain').onclick = () => startGame(demoMode);
+$('btnMenu').onclick = toMenu;
+
+/* 試玩：模擬墊子訊號 */
+function simStep(){ onLanding(70 + Math.round(Math.random()*25), 1, performance.now()); }
+function simJump(){ const ft = 380 + Math.round(Math.random()*150); onLanding(ft, Math.round(9.81*Math.pow(ft/1000,2)/8*100), performance.now()); }
+$('simStep').addEventListener('pointerdown', e => { e.preventDefault(); simStep(); });
+$('simJump').addEventListener('pointerdown', e => { e.preventDefault(); simJump(); });
+addEventListener('keydown', e => {
+  if (!game || !game.running || !game.demo) return;
+  if (e.code==='Space'){ e.preventDefault(); if (!e.repeat) simStep(); }
+  if (e.code==='ArrowUp' || e.code==='KeyJ'){ e.preventDefault(); if (!e.repeat) simJump(); }
+});
+
+/* ================= 主迴圈 ================= */
+let lastT = performance.now();
+function loop(now){
+  const dt = Math.min(0.05, (now - lastT)/1000); lastT = now;
+  if (game && game.running) game.update(now, dt);
+  draw(now);
+  updateHud(now);
+  requestAnimationFrame(loop);
+}
+syncMenu();
+requestAnimationFrame(loop);
+
+// 給測試用
+window.__pm = { onLanding, handleLine, get game(){ return game; } };
+})();
+</script>
+</body>
+</html>
